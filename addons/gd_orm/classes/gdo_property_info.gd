@@ -12,6 +12,7 @@ var default:Variant
 var getter:Callable
 var setter:Callable
 var foreign_key:String
+var included_property:String
 
 func _init(
 	primary_key:bool = false,
@@ -20,7 +21,8 @@ func _init(
 	unique:bool = false,
 	default:Variant = null,
 	foreign_key:StringName = "",
-	column_name:StringName = ""
+	included_property:String = "",
+	column_name:StringName = "",
 ) -> void:
 	self.column_name = column_name
 	self.primary_key = primary_key
@@ -29,6 +31,7 @@ func _init(
 	self.unique = unique
 	self.default = default
 	self.foreign_key = foreign_key
+	self.included_property = included_property
 
 #region _to_string()
 
@@ -42,7 +45,8 @@ unique: %s,
 default: %s,
 getter: %s,
 setter: %s,
-foreign_key: %s
+foreign_key: %s,
+included_property: %s
 " % [
 	column_name,
 	data_type,
@@ -54,5 +58,6 @@ foreign_key: %s
 	getter,
 	setter,
 	foreign_key,
+	included_property,
 ]
 #endregion

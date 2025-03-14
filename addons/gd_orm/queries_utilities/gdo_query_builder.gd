@@ -29,7 +29,8 @@ func _init(table_name:String, sqlite:SQLite, db_set:GDODbSet) -> void:
 	_db_set = db_set
 
 func _check_column_existence(column:String) -> void:
-	if column not in _db_set.get_column_names() and column != "*":
+	if column not in _db_set.get_column_names() \
+	and column != "*" and column != "COUNT(*)":
 		GDOError.new(
 			"column not found",
 			"column not found in entity %s GDOPropertyInfos" % _db_set.get_entity_class_name(),
@@ -104,6 +105,14 @@ func select(columns:PackedStringArray = ["*"]) -> GDOQueryBuilder:
 	_columns = columns
 	return self
 
+func __call_before_insert(entity:Object) -> void:
+	const BEFORE_INSERT_METHOD_NAME:StringName = "_before_insert"
+	if entity.has_method(BEFORE_INSERT_METHOD_NAME):
+		entity.call(BEFORE_INSERT_METHOD_NAME)
+func insert(entity:Object) -> int:
+	_sqlite.insert_row(_db_set.get_entity_class_name(), _db_set.to_row(entity))
+	return _sqlite.last_insert_rowid
+
 func update(columns:PackedStringArray) -> UpdateBuilder:
 	_check_multiple_columns_existence(columns)
 	_operation = UPDATE
@@ -158,6 +167,11 @@ func execute() -> String:
 	_sqlite.query_with_bindings(query.sql, query.parameters)
 	return _sqlite.error_message
 
+func __call_after_load(entity:Object) -> void:
+	const AFTER_LOAD_METHOD_NAME:StringName = "_after_load"
+	if entity.has_method(AFTER_LOAD_METHOD_NAME):
+		entity.call_deferred(AFTER_LOAD_METHOD_NAME)
+
 func to_list() -> Array:
 	var errors:String = execute()
 	if not errors.is_empty() and errors != "not an error":
@@ -167,11 +181,11 @@ func to_list() -> Array:
 			"to_list()",
 			"properly use the fluent api, probably",
 		).throw()
-	var results:Array[Dictionary] = _sqlite.query_result_by_reference
+	var results:Array[Dictionary] = _sqlite.query_result
 	var items:Array
-	items.resize(results.size())
 	for result:Dictionary in results:
-		var instance = _db_set.new_model_instance()
+		var instance = _db_set.from_row(result)
+		__call_after_load(instance)
 		items.append(instance)
 	return items
 
@@ -189,6 +203,8 @@ func last(default = null):
 	if result.is_empty():
 		return default
 	return result[0]
+
+
 
 class WhereBuilder:
 	var _column:String

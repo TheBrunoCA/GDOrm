@@ -21,4 +21,4 @@ func throw() -> void:
 	assert(false, _to_string())
 
 func _to_string() -> String:
-	return "Error: %s\nWhere: %s\nCause: %s\nFix: %s" % [error, cause, where, fix]
+	return "Error: %s\nCause: %s\nWhere: %s\nFix: %s" % [error, cause, where, fix]

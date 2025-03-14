@@ -10,3 +10,5 @@ var __content_pi := GDOPropertyInfo.new(false, false, true)
 
 var user_id:int
 var __user_id_pi := GDOPropertyInfo.new(false, false, true, false, null, "User.id")
+
+var user:User

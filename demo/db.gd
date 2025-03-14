@@ -22,6 +22,11 @@ func mock_data() -> void:
 	user.vector = Vector4(0,1,2,3)
 	user.id = users.insert(user)
 
+	var user2 := User.new()
+	user2.nome = "Cristiano Souza"
+	user2.vector = Vector4(0,1,2,3)
+	user2.id = users.insert(user2)
+
 	var post := Post.new()
 	post.content = "Random post of Bruno"
 	post.user_id = user.id

@@ -14,7 +14,7 @@ var _entity_model
 var _schema_cache:Dictionary[String, Dictionary]
 var _sqlite_instance:SQLite
 var _property_info_list_cache:Dictionary[String, GDOPropertyInfo]
-var _property_list_cache:Array
+var _property_list_cache:PackedStringArray
 var _column_names_list_cache:PackedStringArray
 var _column_to_property:Dictionary[String, String]
 #endregion
@@ -37,12 +37,16 @@ func __get_property_data_type(prop_name:StringName) -> String:
 			return _DATA_TYPE_TEXT
 		TYPE_STRING_NAME:
 			return _DATA_TYPE_TEXT
-		_:
+		TYPE_OBJECT:
 			return _DATA_TYPE_BLOB
+		_:
+			return _DATA_TYPE_TEXT
 func __get_property_getter_for_data_type(data_type:StringName) -> Callable:
 	match data_type:
 		_DATA_TYPE_BLOB:
 			return bytes_to_var_with_objects
+		_DATA_TYPE_TEXT:
+			return str_to_var
 		_:
 			return func(x): return x
 	return func():pass
@@ -50,6 +54,8 @@ func __get_property_setter_for_data_type(data_type:StringName) -> Callable:
 	match data_type:
 		_DATA_TYPE_BLOB:
 			return var_to_bytes_with_objects
+		_DATA_TYPE_TEXT:
+			return var_to_str
 		_:
 			return func(x): return x
 	return func():pass
@@ -87,12 +93,14 @@ func _load_properties_info_cache() -> void:
 	for prop:String in prop_list:
 		var prop_info_name:String = _PROPERTY_INFO_TEMPLATE % prop
 		if prop_info_name not in _entity_model:
-			GDOError.new(
-				"GDOPropertyInfo not found.",
-				"GDOPropertyInfo of %s is missing from entity %s" % [ prop, _entity_model.get_entity_name() ],
-				"_load_properties_info_cache()",
-				"Make sure the GDOPropertyInfo of %s exists with the following format: %s" % [prop, prop_info_name]
-			).throw()
+			continue
+			## Commented to allow for properties to be model-exclusive
+			#GDOError.new(
+				#"GDOPropertyInfo not found.",
+				#"GDOPropertyInfo of %s is missing from entity %s" % [ prop, _entity_model.get_entity_name() ],
+				#"_load_properties_info_cache()",
+				#"Make sure the GDOPropertyInfo of %s exists with the following format: %s" % [prop, prop_info_name]
+			#).throw()
 		var prop_info:GDOPropertyInfo = _entity_model.get(prop_info_name)
 		_property_info_list_cache.set(prop, _get_valid_gdo_property_info(prop, prop_info))
 func _load_columns_to_properties() -> void:
@@ -125,17 +133,17 @@ func _build_schema() -> void:
 #region Public utility methods
 func get_table_schema() -> Dictionary[String, Dictionary]:
 	return _schema_cache
-func get_column_names() -> Array:
+func get_column_names() -> PackedStringArray:
 	if _column_names_list_cache.is_empty():
 		_column_names_list_cache.resize(get_property_info_list().size())
 		for prop:String in get_property_info_list():
 			var prop_info:GDOPropertyInfo = get_property_info(prop)
 			_column_names_list_cache.append(prop_info.column_name)
 	return _column_names_list_cache
-func get_properties() -> Array:
+func get_properties() -> PackedStringArray:
 	if _property_list_cache.is_empty():
-		_property_list_cache = _entity_model.get_property_list() \
-			.filter(__prop_list_filter_usage).map(__prop_list_get_name)
+		_property_list_cache = PackedStringArray(_entity_model.get_property_list() \
+			.filter(__prop_list_filter_usage).map(__prop_list_get_name))
 	return _property_list_cache
 func get_property_info(property_name:String) -> GDOPropertyInfo:
 	if property_name not in _property_info_list_cache.keys():
@@ -190,6 +198,8 @@ func to_row(item) -> Dictionary:
 		var prop_info:GDOPropertyInfo = _property_info_list_cache[prop]
 		if prop_info.auto_increment:
 			continue
+		if prop_info.primary_key and prop_info.data_type == _DATA_TYPE_INT:
+			continue
 		row[prop_info.column_name] = prop_info.setter.call(item.get(prop_info.property_name))
 	return row
 #endregion
@@ -197,9 +207,12 @@ func to_row(item) -> Dictionary:
 func query() -> GDOQueryBuilder:
 	return GDOQueryBuilder.new(get_entity_class_name(), _sqlite_instance, self)
 
-func insert(item) -> int:
-	_sqlite_instance.insert_row(get_entity_class_name(), to_row(item))
-	return _sqlite_instance.last_insert_rowid
+func insert(item:Object) -> int:
+	return query().insert(item)
+
+func insert_many(items_array:Array[Object]) -> void:
+	for item:Object in items_array:
+		insert(item)
 
 func update(columns:PackedStringArray) -> GDOQueryBuilder.UpdateBuilder:
 	return query().update(columns)

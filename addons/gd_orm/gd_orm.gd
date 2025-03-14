@@ -36,3 +36,12 @@ func open_connection() -> SQLite:
 
 func close_connection() -> bool:
 	return _sqlite.close_db()
+
+func begin_transaction() -> void:
+	_sqlite.query("BEGIN TRANSACTION;")
+
+func commit() -> void:
+	_sqlite.query("COMMIT;")
+
+func rollback() -> void:
+	_sqlite.query("ROLLBACK;")
